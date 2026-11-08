@@ -4,6 +4,7 @@ import os
 from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from time import perf_counter_ns
 from typing import Annotated
 
 from fastapi import FastAPI, HTTPException, Request
@@ -14,6 +15,7 @@ from starlette.requests import ClientDisconnect
 from .features import FEATURES, SCHEMA_VERSION, WINDOW
 from .ledger import digest_id
 from .model_artifact import FEATURE_TYPES, POLICY, VERSION, Score, load
+from .monitoring import MetricsMiddleware, ServiceMetrics, inference_ms
 
 DEFAULT_MODEL = Path("artifacts/phase4a/models/baseline-full.json")
 MAX_REQUEST_BYTES = 8192
@@ -78,7 +80,13 @@ async def read_score_request(request):
     except ClientDisconnect as exc:
         raise HTTPException(400, "incomplete request body") from exc
     try:
-        return ScoreRequest.model_validate(json.loads(body.decode("utf-8"), object_pairs_hook=unique_object))
+        decoded = json.loads(body.decode("utf-8"), object_pairs_hook=unique_object)
+        if isinstance(decoded, dict) and "xrpl.metrics" in request.scope:
+            values = decoded.get("values")
+            request.scope["xrpl.metrics"]["complete"] = (
+                isinstance(values, list) and len(values) == len(FEATURES) and None not in values
+            )
+        return ScoreRequest.model_validate(decoded)
     except (ValueError, RecursionError) as exc:
         raise HTTPException(422, "invalid scoring request") from exc
 
@@ -88,13 +96,16 @@ def create_app(model_path=None):
     async def lifespan(app):
         path = model_path if model_path is not None else os.getenv("XRPL_MODEL_PATH", str(DEFAULT_MODEL))
         app.state.detector = load(path)
+        app.state.metrics = ServiceMetrics()
         try:
             yield
         finally:
             del app.state.detector
+            del app.state.metrics
 
     app = FastAPI(title="XRPL anomaly scoring", version="1", lifespan=lifespan, docs_url=None, redoc_url=None)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=LOCAL_HOSTS, www_redirect=False)
+    app.add_middleware(MetricsMiddleware)
 
     @app.get("/health")
     async def health():
@@ -109,6 +120,15 @@ def create_app(model_path=None):
                 "model_version": VERSION, "artifact_sha256": detector.artifact_sha256,
                 "feature_schema_version": SCHEMA_VERSION, "feature_names": FEATURES,
                 "feature_types": FEATURE_TYPES, "calibration_policy": POLICY}
+
+    @app.get("/v1/metrics")
+    async def metrics():
+        if not hasattr(app.state, "metrics"):
+            raise HTTPException(503, "model unavailable")
+        detector = app.state.detector
+        return {**app.state.metrics.snapshot(),
+                "model": {"id": detector.model_id, "type": detector.model_type, "version": VERSION,
+                          "artifact_sha256": detector.artifact_sha256, "feature_schema_version": SCHEMA_VERSION}}
 
     @app.post(
         "/v1/score",
@@ -129,13 +149,17 @@ def create_app(model_path=None):
     async def score(request: Request):
         payload = await read_score_request(request)
         detector = app.state.detector
+        observation = request.scope.get("xrpl.metrics", {})
+        started = perf_counter_ns()
         try:
             result = detector.score(payload.values, feature_names=payload.feature_names,
                                     feature_schema_version=payload.feature_schema_version)
             alert = (detector.alerts(result, identity=digest_id(payload.transaction_id))
                      if payload.transaction_id is not None else None)
         except ValueError as exc:
+            observation["scorer_rejected"] = True
             raise HTTPException(422, str(exc)) from exc
+        observation.update(inference_ms=inference_ms(started), score=result.anomaly_score, alert=alert)
         return ScoreResponse(**asdict(result), alert=alert)
 
     return app

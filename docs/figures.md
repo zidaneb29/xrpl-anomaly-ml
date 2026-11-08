@@ -17,3 +17,12 @@ Use Matplotlib for report figures and NetworkX for directed graph construction a
 Generate figures through a version-controlled script with explicit input manifest or run ID, parameters, and output path. Save figure metadata with the input digests, command, code revision, plot library versions, bins or layout parameters, and applicable seeds. Record the exact invocation once each plot entry point exists. Write outputs under `reports/generated/` and select figures for inclusion after review.
 
 Captions identify the source, date range, coverage, aggregation, units, sample size, and what the visualization supports. Distinguish observed and synthetic data in labels as well as captions. Test plotting-data preparation for boundary times, missing intervals, counts, and units. Use a small offline rendering smoke test once plotting is implemented.
+
+## Phase 4D figures
+
+The [Phase 4D reproduction commands](phase4d.md#reproduce-offline) write these PNGs and `figure-metadata.json` to the ignored run directory.
+
+| Figure | Source and interpretation |
+| --- | --- |
+| `historical-monitoring.png` | Eighteen clean ten-minute windows from blocks 7–12. Fee, prior-edge count and score distances use block 7 as the reference. The lower panel shows frozen alert rates. |
+| `shift-recovery.png` | Three block 8 windows, with the intervention shaded and its same-row historical counterpart shown separately. The panels show fee drift, score quantiles and frozen alert rates. |
