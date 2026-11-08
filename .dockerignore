@@ -1,0 +1,8 @@
+# Deny by default. Allow only service source and build inputs.
+**
+!Dockerfile
+!.dockerignore
+!requirements-service-py314.txt
+!src/
+!src/xrpl_anomaly/
+!src/xrpl_anomaly/*.py

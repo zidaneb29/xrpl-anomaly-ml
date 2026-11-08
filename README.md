@@ -16,6 +16,11 @@ Phase 2 implements the bounded Mainnet pilot, SQLite ingestion, chronological fe
 - [Phase 3B.3 held-out calibration and evaluation](docs/phase3b3.md)
 - [Phase 4A model bundles, inference and local tracking](docs/phase4a.md)
 - [Phase 4B local scoring API](docs/phase4b.md)
+- [Phase 4C locked service setup, Docker, and CI](docs/phase4c.md)
+
+## Run the scoring API
+
+Use the Phase 4C guide to install the hash-pinned service dependencies in an isolated CPython 3.14 environment or build the local Linux container. Both workflows load one approved bundle at startup. The guide includes the loopback binding, read-only model mount, and offline verification commands.
 
 ## Offline checks
 

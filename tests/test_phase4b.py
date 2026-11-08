@@ -39,17 +39,22 @@ async def request(app, method, path, *chunks, media_type="application/json", hos
     return messages[0]["status"], json.loads(body) if content_type == b"application/json" else body.decode()
 
 
+def service_fixture():
+    boundary = "AB" * 32
+    parameters = baseline.fit(ROWS, FEATURES)
+    score = baseline.score(ROWS[20], FEATURES, parameters)[0]
+    bundle = fixture("baseline-full", "robust_baseline", BASELINE_CONFIG, parameters,
+                     list(FEATURES[1:]), baseline.alert_key(score, boundary))
+    return bundle, boundary
+
+
 @unittest.skipUnless(importlib.util.find_spec("fastapi"), "optional FastAPI environment required")
 class ServiceTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         directory = self.enterContext(tempfile.TemporaryDirectory(dir="."))
         self.path = Path(directory) / "model.json"
-        self.boundary = "AB" * 32
-        self.parameters = baseline.fit(ROWS, FEATURES)
+        self.bundle, self.boundary = service_fixture()
         self.payload = {"feature_schema_version": SCHEMA_VERSION, "feature_names": FEATURES, "values": ROWS[20]}
-        score = baseline.score(ROWS[20], FEATURES, self.parameters)[0]
-        self.bundle = fixture("baseline-full", "robust_baseline", BASELINE_CONFIG, self.parameters,
-                              list(FEATURES[1:]), baseline.alert_key(score, self.boundary))
 
     async def test_model_metadata_and_scoring_parity(self):
         save(self.path, self.bundle)

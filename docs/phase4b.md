@@ -1,5 +1,7 @@
 # Phase 4B local scoring API
 
+For the dedicated service lock, Docker setup and CI checks, see the [Phase 4C guide](phase4c.md).
+
 Run the service from the repository root with the [Phase 4A tracking environment](phase4a.md#local-experiment-tracking). Its existing lock includes FastAPI 0.162.2, Pydantic 2.14.3, Starlette 1.10.0, and Uvicorn 0.54.0. Serving imports the standard-library scorer and the HTTP stack. It opens the selected bundle at startup and keeps one validated detector per process. Missing or malformed bundles fail startup. Correct the path or restore a verified bundle, then restart the process.
 
 ```powershell
