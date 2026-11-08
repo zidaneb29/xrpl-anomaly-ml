@@ -8,7 +8,9 @@ $python = '.venv-phase4a/Scripts/python.exe'
 & $python -B -m uvicorn xrpl_anomaly.service:create_app --factory --host 127.0.0.1 --port 8000 --no-access-log
 ```
 
-The default artifact is `artifacts/phase4a/models/baseline-full.json`. Package it first using the Phase 4A commands if needed. To serve an alternate frozen model, set `XRPL_MODEL_PATH` to its local bundle before starting the process. The documented launch binds to loopback. It assumes trusted local clients and a trusted local bundle.
+The default artifact is `artifacts/phase4a/models/baseline-full.json`. Package it first using the Phase 4A commands if needed. To serve an alternate frozen model, set `XRPL_MODEL_PATH` to its local bundle before starting the process.
+
+Keep the Uvicorn bind address at `127.0.0.1` for local use. The service accepts `Host` values of `127.0.0.1`, `localhost`, and `[::1]`, with optional ports. The default listener uses IPv4. Host validation alone cannot prevent network exposure because clients can set the header themselves. The service relies on a loopback listener, trusted local clients, and a trusted local bundle.
 
 ## HTTP contract
 
@@ -36,11 +38,13 @@ For real observations, send the producer's actual schema version and ordered fea
 
 Include a 64-character hexadecimal `transaction_id` to request a calibrated decision. The service normalizes the hash to uppercase using the ingestion rule. The hash participates only in the persisted tie policy. Without it, `alert` is null and the anomaly score is identical. The response includes model metadata and omits transaction identity and the calibration boundary's transaction hash. A true alert describes statistical atypicality.
 
-Bodies require `application/json` and are capped at 8 KiB. The API returns 413 for oversized bodies, 415 for unsupported media types, and 422 for malformed JSON, incompatible schemas, invalid vectors, or invalid identities. Request bodies are not logged by the service.
+Bodies require UTF-8 `application/json`, unique JSON object keys, and at most 8 KiB. The API returns 400 for a missing or disallowed Host or an incomplete body, 413 for oversized bodies, 415 for unsupported media types, and 422 for malformed JSON, duplicate keys, incompatible schemas, invalid vectors, or invalid identities. Request bodies are not logged by the service.
+
+The OpenAPI contract specifies all 21 feature positions, numeric bounds where applicable, the optional transaction hash, and the score and error response types. Integer positions require JSON integer literals. The live scorer validates the supplied feature schema version and names before scoring.
 
 ## Local verification
 
-Run the service tests with the optional serving environment. They cover request validation, model metadata, offline/API parity, tied cutoff decisions, and startup failure and recovery.
+Run the service tests with the optional serving environment. They cover allowed Hosts, duplicate JSON keys, bounded request parsing, OpenAPI structure, offline/API parity, tied cutoff decisions, and startup failure and recovery.
 
 ```powershell
 & $python -I -B -c "import sys, unittest; sys.path.insert(0, 'src'); r = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.discover('tests', pattern='test_phase4b.py')); sys.exit(not r.wasSuccessful())"
