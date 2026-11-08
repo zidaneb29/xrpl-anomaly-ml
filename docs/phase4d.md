@@ -56,7 +56,7 @@ The scenario uses block 8's first window unchanged, sets the prepared `log_fee_d
 | Middle window, synthetic | 2,030 | 1.000 | 1.000 | 69.98 | 2,030 (100%) |
 | Recovery | 1,341 | 0.128 | 0.194 | 4.34 | 15 (1.12%) |
 
-Both baseline distances cleared the guide in recovery. Score distance remained higher than in the normal window. Among the forest comparisons, score D reached 0.278 for seed 7 and 0.242 for seed 29 under intervention. It fell to 0.212 and 0.234 in recovery, respectively. All three clean block 8 windows already exceeded the score guide for both forests, so the guide could not separate the synthetic segment from normal variation for those scores. The seed 29 response was especially weak in the recovery comparison. These findings describe sensitivity to one large, deliberately localized perturbation.
+Both baseline distances fell below the 0.20 guide in recovery. Score distance remained higher than in the normal window. Among the forest comparisons, score D reached 0.278 for seed 7 and 0.242 for seed 29 under intervention. It fell to 0.212 and 0.234 in recovery, respectively. All three clean block 8 windows already exceeded the score guide for both forests, so the guide could not separate the synthetic segment from normal variation for those scores. The seed 29 response was especially weak in the recovery comparison. These findings describe sensitivity to one large, deliberately localized perturbation.
 
 ## Verification boundary
 

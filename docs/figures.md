@@ -26,3 +26,15 @@ The [Phase 4D reproduction commands](phase4d.md#reproduce-offline) write these P
 | --- | --- |
 | `historical-monitoring.png` | Eighteen clean ten-minute windows from blocks 7–12. Fee, prior-edge count and score distances use block 7 as the reference. The lower panel shows frozen alert rates. |
 | `shift-recovery.png` | Three block 8 windows, with the intervention shaded and its same-row historical counterpart shown separately. The panels show fee drift, score quantiles and frozen alert rates. |
+
+
+## Phase 5 reproduction and interpretation
+
+The [audit commands](phase5-audit.md#figure-audit) regenerate the frozen figures into separate, ignored directories. The PNGs use aggregated observations and their metadata identifies the frozen inputs.
+
+| Output | How to read it |
+| --- | --- |
+| `ablation-and-blocks.png` | Point summaries of synthetic AP for feature ablations and four held-out blocks. The two panels have different vertical ranges. Block 12 dominates the forest's mean advantage. Use the [recall and paired-block results](phase3b3.md#synthetic-test-comparison) alongside AP. |
+| `calibration.png` | Empirical survival on a log scale for original calibration rows. The line marks the score component only. The [calibration table](phase3b3.md#clean-calibration-and-operating-behavior) gives exact tie and alert counts. |
+| `historical-monitoring.png` | Comparisons across unchanged windows. Block 7 is also the reference and its windows overlap it. The 0.20 line is a descriptive ECDF guide. |
+| `shift-recovery.png` | The middle window shows the synthetic fee change and the same unchanged observations. The score markers are medians and the bars describe p05–p95 score spread. The alert panel uses the full percentage scale so the 100% intervention response is visible. Read the [numeric table](phase4d.md#historical-behavior-and-controlled-shift) to compare low alert rates and the recovery values. |

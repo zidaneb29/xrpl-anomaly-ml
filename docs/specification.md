@@ -36,3 +36,16 @@ Full-history access has historical limits and endpoint coverage can have holes. 
 - Keep raw responses local. Publish manifests and permitted aggregates only after reviewing source terms. Use synthetic fixtures in Git by default. The application uses read-only methods and has no wallet or signing workflow.
 
 [Payment protocol](https://xrpl.org/docs/references/protocol/transactions/types/payment), [metadata](https://xrpl.org/docs/references/protocol/transactions/metadata), [units and time](https://xrpl.org/docs/references/protocol/data-types/basic-data-types), [close time resolution](https://xrpl.org/docs/concepts/ledgers/ledger-close-times)
+
+
+## Reproduce the Phase 2 pilot
+
+From the repository root in PowerShell, use a supported Python interpreter. The first command resumes the bounded sample of ledgers 108187347–108187602 and makes read-only HTTPS calls for missing inputs. Use a single acquisition process per cache directory. Skip it when the original verified cache is available.
+
+```powershell
+$env:PYTHONPATH = 'src'
+python -B -m xrpl_anomaly.pilot data/raw/pilot-108187602 108187602
+python -B -m xrpl_anomaly.analysis data/raw/pilot-108187602 data/processed/phase3a-pilot-108187602.sqlite reports/generated/phase3a-pilot-108187602
+```
+
+The second command replays offline using the revised Phase 3A baseline. To reproduce the earlier scoring policy, pass `--legacy-resolution` with separate output paths. For PNGs, use the Windows plotting lock with the binary and hash options in the [service install guide](phase4c.md#verification), set `MPLCONFIGDIR` to a local directory under `artifacts/`, and pass `--figures`. Use a separate replay destination if you need to preserve an existing report. Review the manifest and cache before continuing after a digest or hash conflict.
