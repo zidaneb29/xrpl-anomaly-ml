@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xrpl-anomaly-ml"
+version = "0.1.0"
+description = "Reproducible anomaly detection research on XRP Ledger payments"
+readme = "README.md"
+requires-python = ">=3.12,<3.15"
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["src"]
