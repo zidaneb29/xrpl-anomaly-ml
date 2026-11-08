@@ -13,6 +13,7 @@ Phase 2 implements the bounded Mainnet pilot, SQLite ingestion, chronological fe
 - [Phase 3A baseline results and evaluation plan](docs/phase3a.md)
 - [Phase 3B.1 alert budget and frozen acquisition plan](docs/phase3b1.md)
 - [Phase 3B.2 training and development comparison](docs/phase3b2.md)
+- [Phase 3B.3 held-out calibration and evaluation](docs/phase3b3.md)
 
 ## Offline checks
 

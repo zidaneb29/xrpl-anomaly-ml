@@ -125,32 +125,39 @@ def acquire_initial(path, root):
 
 
 def development_plan(path):
+    return frozen_plan(path)[:6]
+
+
+def frozen_plan(path):
     # Accept Git's Windows line-ending conversion, but no content changes.
     body = path.read_bytes().replace(b"\r\n", b"\n")
     if digest(body) != FROZEN_DIGEST:
-        raise ValueError("Phase 3B.2 requires the original frozen manifest")
+        raise ValueError("expected the original frozen manifest")
     plan = json.loads(body)
     validate_plan(plan)
-    return plan["blocks"][:6]
+    return plan["blocks"]
 
 
 def acquire_next(path=PLAN, root=NEXT_ROOT):
+    acquire_stage(root, development_plan(path)[2:], 3, NEXT_LIMITS, NEXT_STORAGE)
+
+
+def acquire_stage(root, blocks, first_number, limits, storage):
     import msvcrt
     import shutil
 
-    blocks = development_plan(path)[2:]
     minimum = sum(b["headers"][-2][0] - b["headers"][0][0] + 4 for b in blocks)
-    if minimum > NEXT_LIMITS[0]:
+    if minimum > limits[0]:
         raise ValueError("frozen ranges exceed the request ceiling")
     root.mkdir(parents=True, exist_ok=True)
     with (root / "stage.lock").open("a+b") as lock:
         lock.seek(0)
         msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
         existing = sum(p.stat().st_size for p in root.rglob("*") if p.is_file())
-        if shutil.disk_usage(root).free < NEXT_STORAGE - existing + 64 * MIB:
+        if shutil.disk_usage(root).free < storage - existing + 64 * MIB:
             raise RuntimeError("insufficient free space for the bounded stage")
         # Leave 16 MiB for manifests and their atomic replacements.
-        remaining = NEXT_STORAGE - 16 * MIB - existing
+        remaining = storage - 16 * MIB - existing
 
         def reserve_cache(size):
             nonlocal remaining
@@ -158,8 +165,8 @@ def acquire_next(path=PLAN, root=NEXT_ROOT):
                 raise RuntimeError("stage storage ceiling reached")
             remaining -= size
 
-        acquire_locked(root, blocks, FROZEN_DIGEST, first_number=3,
-                       limits=NEXT_LIMITS, reserve_cache=reserve_cache)
+        acquire_locked(root, blocks, FROZEN_DIGEST, first_number=first_number,
+                       limits=limits, reserve_cache=reserve_cache)
 
 
 def acquire_locked(root, blocks, plan_digest, *, first_number=1,
