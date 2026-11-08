@@ -145,7 +145,7 @@ def acquire(directory, tip):
     acquire_range(directory, config, Client(), {start, start + 128, tip})
 
 
-def acquire_range(directory, config, client, cross_indexes, expected=None):
+def acquire_range(directory, config, client, cross_indexes, expected=None, *, reserve_cache=None):
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / "manifest.json"
     start, tip = config["range"]
@@ -158,6 +158,13 @@ def acquire_range(directory, config, client, cross_indexes, expected=None):
     run_start = time.monotonic()
     previous = None
     all_hashes = set()
+
+    def save_body(target, raw):
+        compressed = gzip.compress(raw, mtime=0)
+        if reserve_cache:
+            reserve_cache(len(compressed))
+        write_atomic(target, compressed)
+
     try:
         for index in range(start, tip + 1):
             if time.monotonic() >= client.end:
@@ -196,7 +203,7 @@ def acquire_range(directory, config, client, cross_indexes, expected=None):
                     raise ValueError("replacement body conflicts with the immutable snapshot")
                 cache = directory / (checksum + ".json.gz")
                 if not cache.exists():
-                    write_atomic(cache, gzip.compress(body, mtime=0))
+                    save_body(cache, body)
                 elif not item:
                     cached(directory, {"sha256": checksum, "bytes": len(body)})
                 manifest["ledgers"][key] = {
@@ -212,8 +219,11 @@ def acquire_range(directory, config, client, cross_indexes, expected=None):
                 if body is not None:
                     quarantine = directory / "quarantine"
                     quarantine.mkdir(exist_ok=True)
-                    write_atomic(quarantine / f"{index}-{digest(body)}.json.gz",
-                                 gzip.compress(body, mtime=0))
+                    try:
+                        save_body(quarantine / f"{index}-{digest(body)}.json.gz", body)
+                    except RuntimeError:
+                        if not reserve_cache:
+                            raise
                 raise
             finally:
                 manifest["observed_range"] = [start, previous.index] if previous else None

@@ -11,7 +11,7 @@ from hashlib import sha256
 from pathlib import Path
 
 from .baseline import alert_cutoff, budget_summary
-from .expansion import PLAN, ROOT, validate_plan
+from .expansion import FROZEN_DIGEST, NEXT_ROOT, PLAN, ROOT, development_plan, validate_plan
 from .features import FEATURES, SCHEMA_VERSION, WINDOW, features
 from .pilot import digest, dump
 from .storage import connect, ingest, replay
@@ -26,17 +26,25 @@ def scored_features(ledgers, start):
             yield row
 
 
-def report(path=PLAN, root=ROOT, *, figures=False):
-    plan_body = path.read_bytes()
-    plan = json.loads(plan_body)
-    validate_plan(plan)
-    plan_digest = digest(plan_body)
+def report(path=PLAN, root=ROOT, *, figures=False, development=False, next_root=NEXT_ROOT,
+           output=None, processed=Path("data/processed")):
+    if development:
+        blocks = development_plan(path)
+        plan_digest = FROZEN_DIGEST
+    else:
+        plan_body = path.read_bytes()
+        plan = json.loads(plan_body)
+        validate_plan(plan)
+        blocks = plan["blocks"][:2]
+        plan_digest = digest(plan_body)
     previous_accounts, previous_edges = set(), set()
     results = []
-    for number, block in enumerate(plan["blocks"][:2], 1):
-        directory = root / f"block-{number:02d}"
+    for number, block in enumerate(blocks, 1):
+        directory = (root if number < 3 else next_root) / f"block-{number:02d}"
         manifest_path = directory / "manifest.json"
         if not manifest_path.is_file():
+            if development:
+                raise ValueError(f"missing manifest for block {number}")
             continue
         manifest_body = manifest_path.read_bytes()
         manifest = json.loads(manifest_body)
@@ -45,12 +53,24 @@ def report(path=PLAN, root=ROOT, *, figures=False):
                 or config["range"] != [block["headers"][0][0], block["headers"][-2][0]]
                 or manifest["configuration_digest"] != digest(json.dumps(config, sort_keys=True).encode())):
             raise ValueError("manifest is from another sampling plan")
-        db_path = Path(f"data/processed/phase3b-block-{number:02d}.sqlite")
+        if development and (manifest["gaps"] or manifest["errors"]):
+            raise ValueError(f"incomplete block {number}")
+        db_prefix = "phase3b2" if development else "phase3b"
+        db_path = processed / f"{db_prefix}-block-{number:02d}.sqlite"
         db_path.parent.mkdir(parents=True, exist_ok=True)
         started = time.monotonic()
         with closing(connect(db_path)) as db:
             ingest(db, directory)
             ledger_count, = db.execute("SELECT COUNT(*) FROM ledger").fetchone()
+            if development:
+                low, high = config["range"]
+                if ledger_count != high - low + 1:
+                    raise ValueError(f"incomplete ledger range for block {number}")
+                for index, close, identity in (block["headers"][i] for i in (0, 3, 4)):
+                    actual = db.execute("SELECT close_unix, hash FROM ledger WHERE idx=?",
+                                        (index,)).fetchone()
+                    if actual != (close, identity):
+                        raise ValueError(f"frozen boundary mismatch in block {number}")
             if db.execute("PRAGMA integrity_check").fetchall() != [("ok",)]:
                 raise ValueError("SQLite integrity check failed")
             if db.execute("PRAGMA foreign_key_check").fetchone():
@@ -129,12 +149,22 @@ def report(path=PLAN, root=ROOT, *, figures=False):
             "edges_in_earlier_blocks": len(set(edges) & previous_edges),
             "ingest_seconds": ingest_seconds, "replay_seconds": time.monotonic() - started,
         })
+        if development:
+            results[-1].update(role=block["role"], start=start,
+                               total_transactions=sum(item["total"] for item in items),
+                               acquisition_runs=manifest["runs"],
+                               structurally_invalid_ledgers=len(manifest["errors"]),
+                               invalid_payment_records=sum(
+                                   exclusions[name] for name in ("invalid_or_same_account",
+                                                                  "invalid_amount_fee_or_flags")))
         previous_accounts.update(accounts)
         previous_edges.update(edges)
-    output = Path("reports/generated/phase3b-training")
+    if output is None:
+        output = Path("reports/generated/phase3b2" if development else
+                      "reports/generated/phase3b-training")
     output.mkdir(parents=True, exist_ok=True)
     source_dir = Path(__file__).parent
-    budget_path = root / "budget.json"
+    budget_path = (next_root if development else root) / "budget.json"
     dump(output / "summary.json", {"plan_sha256": plan_digest, "python": platform.python_version(),
                                    "platform": platform.platform(),
                                    "sqlite": sqlite3.sqlite_version,
@@ -146,6 +176,7 @@ def report(path=PLAN, root=ROOT, *, figures=False):
                                    "blocks": results})
     if figures:
         render(output, results)
+    return results
 
 
 def render(output, blocks):

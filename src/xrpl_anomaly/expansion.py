@@ -13,6 +13,11 @@ ROOT = Path("data/raw/phase3b-training")
 MAX_ATTEMPTS = 1500
 MAX_BYTES = 1024 * MIB
 MAX_SECONDS = 3600
+NEXT_ROOT = Path("data/raw/phase3b2")
+NEXT_NUMBERS = range(3, 7)
+NEXT_LIMITS = (3000, 2 * 1024 * MIB, 7200)
+NEXT_STORAGE = 512 * MIB
+FROZEN_DIGEST = "9f483936a72cb36fa4fe08cf61b694aaea7ae417af6fa607be65e766bfa44e24"
 WEEK_ZERO = datetime(2026, 9, 21, tzinfo=UTC)
 ROLES = ("train", "train", "development", "calibration", "test", "test")
 
@@ -119,7 +124,47 @@ def acquire_initial(path, root):
         acquire_locked(root, blocks, digest(body))
 
 
-def acquire_locked(root, blocks, plan_digest):
+def development_plan(path):
+    # Accept Git's Windows line-ending conversion, but no content changes.
+    body = path.read_bytes().replace(b"\r\n", b"\n")
+    if digest(body) != FROZEN_DIGEST:
+        raise ValueError("Phase 3B.2 requires the original frozen manifest")
+    plan = json.loads(body)
+    validate_plan(plan)
+    return plan["blocks"][:6]
+
+
+def acquire_next(path=PLAN, root=NEXT_ROOT):
+    import msvcrt
+    import shutil
+
+    blocks = development_plan(path)[2:]
+    minimum = sum(b["headers"][-2][0] - b["headers"][0][0] + 4 for b in blocks)
+    if minimum > NEXT_LIMITS[0]:
+        raise ValueError("frozen ranges exceed the request ceiling")
+    root.mkdir(parents=True, exist_ok=True)
+    with (root / "stage.lock").open("a+b") as lock:
+        lock.seek(0)
+        msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+        existing = sum(p.stat().st_size for p in root.rglob("*") if p.is_file())
+        if shutil.disk_usage(root).free < NEXT_STORAGE - existing + 64 * MIB:
+            raise RuntimeError("insufficient free space for the bounded stage")
+        # Leave 16 MiB for manifests and their atomic replacements.
+        remaining = NEXT_STORAGE - 16 * MIB - existing
+
+        def reserve_cache(size):
+            nonlocal remaining
+            if size > remaining:
+                raise RuntimeError("stage storage ceiling reached")
+            remaining -= size
+
+        acquire_locked(root, blocks, FROZEN_DIGEST, first_number=3,
+                       limits=NEXT_LIMITS, reserve_cache=reserve_cache)
+
+
+def acquire_locked(root, blocks, plan_digest, *, first_number=1,
+                   limits=(MAX_ATTEMPTS, MAX_BYTES, MAX_SECONDS), reserve_cache=None):
+    max_attempts, max_bytes, max_seconds = limits
     budget = root / "budget.json"
     state = json.loads(budget.read_bytes()) if budget.exists() else {
         "plan_sha256": plan_digest, "attempts": 0, "budget_bytes": 0, "observed_bytes": 0,
@@ -130,10 +175,10 @@ def acquire_locked(root, blocks, plan_digest):
     prior_seconds = state["seconds"]
     if state.get("active"):
         prior_seconds += max(0, time.time() - state["charged_through_unix"])
-    if prior_seconds >= MAX_SECONDS:
+    if prior_seconds >= max_seconds:
         raise RuntimeError("acquisition time budget exhausted")
-    client = Client(max_attempts=MAX_ATTEMPTS, max_bytes=MAX_BYTES,
-                    end=started + MAX_SECONDS - prior_seconds)
+    client = Client(max_attempts=max_attempts, max_bytes=max_bytes,
+                    end=started + max_seconds - prior_seconds)
     client.attempts = state["attempts"]
     client.bytes = state["budget_bytes"]
     client.observed_bytes = state["observed_bytes"]
@@ -150,7 +195,7 @@ def acquire_locked(root, blocks, plan_digest):
     client.checkpoint = checkpoint
     checkpoint(started)
     try:
-        for number, block in enumerate(blocks, 1):
+        for number, block in enumerate(blocks, first_number):
             anchor, _, _, first, last, _ = block["headers"]
             start, end = anchor[0], last[0]
             config = {"schema": 2, "range": [start, end], "endpoint": PRIMARY,
@@ -158,16 +203,18 @@ def acquire_locked(root, blocks, plan_digest):
                       "plan_sha256": plan_digest, "block": number}
             expected = {index: (close, identity) for index, close, identity in (anchor, first, last)}
             acquire_range(root / f"block-{number:02d}", config, client,
-                          {start, (start + end) // 2, end}, expected)
+                          {start, (start + end) // 2, end}, expected, reserve_cache=reserve_cache)
     finally:
         checkpoint(time.monotonic(), active=False)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["freeze", "acquire"])
+    parser.add_argument("action", choices=["freeze", "acquire", "acquire-next"])
     args = parser.parse_args()
     if args.action == "freeze":
         freeze(PLAN)
-    else:
+    elif args.action == "acquire":
         acquire_initial(PLAN, ROOT)
+    else:
+        acquire_next()
