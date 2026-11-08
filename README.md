@@ -15,6 +15,7 @@ Phase 2 implements the bounded Mainnet pilot, SQLite ingestion, chronological fe
 - [Phase 3B.2 training and development comparison](docs/phase3b2.md)
 - [Phase 3B.3 held-out calibration and evaluation](docs/phase3b3.md)
 - [Phase 4A model bundles, inference and local tracking](docs/phase4a.md)
+- [Phase 4B local scoring API](docs/phase4b.md)
 
 ## Offline checks
 
