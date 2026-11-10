@@ -38,3 +38,18 @@ The [audit commands](phase5-audit.md#figure-audit) regenerate the frozen figures
 | `calibration.png` | Empirical survival on a log scale for original calibration rows. The line marks the score component only. The [calibration table](phase3b3.md#clean-calibration-and-operating-behavior) gives exact tie and alert counts. |
 | `historical-monitoring.png` | Comparisons across unchanged windows. Block 7 is also the reference and its windows overlap it. The 0.20 line is a descriptive ECDF guide. |
 | `shift-recovery.png` | The middle window shows the synthetic fee change and the same unchanged observations. The score markers are medians and the bars describe p05–p95 score spread. The alert panel uses the full percentage scale so the 100% intervention response is visible. Read the [numeric table](phase4d.md#historical-behavior-and-controlled-shift) to compare low alert rates and the recovery values. |
+
+## Existing figure inventory
+
+The table groups distinct PNG filenames by generation stage. Audit repeats and tracking copies reuse the same filenames. The README gallery uses byte-for-byte copies of four existing PNGs.
+
+| Figure | Purpose | Generation source |
+| --- | --- | --- |
+| `payment-counts.png`, `xrp-volume.png` | Eligible payment counts and delivered XRP by UTC minute | Phase 2 pilot coverage and normalized payments via [`analysis.py`](../src/xrpl_anomaly/analysis.py) and [`plots.py`](../src/xrpl_anomaly/plots.py). Phase 3A also replayed the pilot. |
+| `amount-fee.png`, `history-features.png` | Amount and fee distributions and eligible prior activity | Same Phase 2 and 3A plotting path |
+| [`directed-network.png`](images/directed-network.png) | Unlabeled directed pilot subgraph | Original Phase 2 pilot, ledgers 108187347–108187602, snapshot prefix `a90ec409114ee`, layout seed 42 |
+| `pilot-sparsity-and-ties.png`, `training-recurrence.png` | Pilot sparsity and score ties, plus training-block graph recurrence | [Phase 3B.1 training and pilot summaries](phase3b1.md) |
+| `block-comparison.png`, `detector-scores.png`, `feature-ablation.png`, `feature-distributions.png`, `graph-recurrence.png`, `sparse-features.png`, `synthetic-severity.png` | Training and development comparisons, observed feature and score behavior, and controlled changes | [Phase 3B.2 development results](phase3b2.md) via [`development_figures.py`](../src/xrpl_anomaly/development_figures.py) |
+| [`ablation-and-blocks.png`](images/ablation-and-blocks.png), `synthetic-families.png` | Synthetic average precision by feature set, test block, or perturbation family and strength | Frozen Phase 3B.3 evaluation, clean scores and model metadata via [`heldout_figures.py`](../src/xrpl_anomaly/heldout_figures.py). The gallery uses the [Phase 5 audited copy](phase5-audit.md#figure-audit). |
+| `alerts-and-stability.png`, `calibration.png`, `performance-and-cost.png` | Historical alert and ranking behavior, calibration survival curves, and synthetic average precision versus model size | Same frozen Phase 3B.3 inputs and renderer |
+| [`historical-monitoring.png`](images/historical-monitoring.png), [`shift-recovery.png`](images/shift-recovery.png) | Unchanged Mainnet window behavior and a separate paired synthetic intervention | Phase 4D baseline replay report via [`monitoring_figures.py`](../src/xrpl_anomaly/monitoring_figures.py). The gallery uses the [Phase 5 audited copies](phase5-audit.md#figure-audit). |

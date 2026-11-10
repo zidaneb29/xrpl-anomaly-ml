@@ -18,6 +18,24 @@ The robust statistical baseline is the operational reference. The full Isolation
 
 Offline monitoring detected a large synthetic fee shift. Natural historical variation also frequently crossed the 0.20 empirical CDF distance guide, including forest scores in unchanged windows. The guide is descriptive. See the [technical audit](docs/phase5-audit.md) for the numerical results, figure provenance and verification boundaries.
 
+## Figure gallery
+
+![Unlabeled directed payment graph for the 256-ledger Mainnet pilot](docs/images/directed-network.png)
+
+**Payment network.** The November 8, 2026 UTC pilot contained 3,873 eligible payments. The graph shows 19 directed edges among the 16 accounts with the most incident payments in that slice. Node area and edge width encode payment counts. See the [pilot specification](docs/specification.md#reproduce-the-phase-2-pilot).
+
+![Synthetic held-out average precision by feature set and test block](docs/images/ablation-and-blocks.png)
+
+**Held-out synthetic evaluation.** Macro average precision compares the robust baseline with Isolation Forest on synthetic interventions in blocks 9–12. The panels use different vertical scales. Block 12 accounts for the forest's mean advantage with the full feature set. See the [held-out comparison](docs/phase3b3.md#synthetic-test-comparison).
+
+![Distribution distances and alert rates across unchanged Mainnet windows](docs/images/historical-monitoring.png)
+
+**Historical monitoring.** Eighteen unchanged ten-minute Mainnet windows contain 23,677 observations. The upper panel compares feature and score distributions against block 7, which overlaps its own reference. The lower panel shows alert rates under the frozen rule. The 0.20 distance guide is descriptive.
+
+![Synthetic fee shift and recovery alongside the same unchanged Mainnet rows](docs/images/shift-recovery.png)
+
+**Synthetic shift and recovery.** In the shaded block 8 window, the fee feature represents a fixed 100,000 drops for all 2,030 rows. The dashed orange line shows the same rows with their original fees. The next window uses unchanged observations. Score markers are medians and bars show the 5th–95th percentiles. See the [monitoring results](docs/phase4d.md#historical-behavior-and-controlled-shift) and [figure inventory](docs/figures.md#existing-figure-inventory).
+
 ## Try the offline demo
 
 From the repository root in PowerShell, use x64 CPython 3.14.7 with pip. The install fetches hash-pinned wheels. The demo itself uses a deterministic synthetic test bundle and requires no ledger data or credentials.
