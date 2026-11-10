@@ -47,6 +47,9 @@ class ReleaseTests(unittest.TestCase):
         path = Path(directory) / "model.json"
         bundle, boundary = service_fixture()
         save(path, bundle)
+        if os.name == "posix":
+            # Docker mounts only this file. Its non-root user needs read access.
+            path.chmod(0o644)
         self.check_parity(path, boundary, self.start_container(path))
 
     @unittest.skipUnless(IMAGE, "set XRPL_TEST_IMAGE to a locally built image")
