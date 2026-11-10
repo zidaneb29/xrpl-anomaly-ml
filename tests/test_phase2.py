@@ -261,3 +261,22 @@ class PlotTests(unittest.TestCase):
             self.assertEqual(len(list(output.glob("*.png"))), 5)
             plot(data, full, report, output)
             self.assertEqual(before, (output / "figure-metadata.json").read_bytes())
+
+    def test_induced_graph_keeps_isolates_and_shared_recipient_edges(self):
+        # Synthetic payments reproduce the published graph's topology by rank.
+        pairs = [(sender, receiver) for sender in (1, 2) for receiver in (4, 5, 7, 9, 10)]
+        pairs += [(3, 7), (6, 7), (6, 10), (11, 7), (13, 7),
+                  (14, 0), (14, 7), (15, 7), (15, 9)]
+        transfers = [(str(sender), str(receiver)) for sender, receiver in pairs]
+        transfers.append(("1", "4"))  # The ordered pair is still one edge.
+        for rank in range(16):
+            account = str(rank)
+            degree = sum(account in pair for pair in transfers)
+            transfers.extend((account, f"outside-{rank}-{i}") for i in range(32 - rank - degree))
+        payments = [(i, str(i), sender, receiver, 1, 1)
+                    for i, (sender, receiver) in enumerate(transfers)]
+        sizes, edges = graph_data([(1, 0, payments)])
+        self.assertEqual(sizes, list(range(32, 16, -1)))
+        self.assertEqual(len(edges), 19)
+        self.assertEqual({(u, v) for u, v, _ in edges}, set(pairs))
+        self.assertIn((1, 4, 2), edges)

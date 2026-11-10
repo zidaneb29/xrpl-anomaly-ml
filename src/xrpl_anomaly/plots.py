@@ -8,6 +8,14 @@ from .pilot import digest, dump
 BIN = 60
 SEED = 42
 MAX_NODES = 16
+PILOT_SNAPSHOT = "a90ec409114ee4043b5b0f9b66583900ec159a645a634afa1633e38b26e36ce4"
+# Rank-indexed coordinates for the frozen pilot. Put the two senders on
+# opposite sides of their five shared recipients, with isolates at lower right.
+PILOT_LAYOUT = (
+    (3.9, -.6), (-7, 0), (7, 0), (-.8, -4.4), (0, 6), (0, 3),
+    (-1.5, -1.1), (0, -3), (4.8, -5.5), (0, -6), (0, 0), (-1.95, -3.45),
+    (6.1, -5.5), (.65, -1.35), (2.1, -.8), (.9, -4.1),
+)
 
 
 def minute_bins(ledgers):
@@ -101,18 +109,27 @@ def plot(ledgers, full, report, output):
              f"Complete 10-minute history only, n={len(full):,}. Prior activity is limited to eligible payments.")
 
     sizes, edges = graph_data(ledgers)
+    layout_name = None
+    layout_seed = None
     if edges:
         graph = nx.DiGraph()
         graph.add_nodes_from(range(len(sizes)))
         graph.add_weighted_edges_from(edges)
-        fig, ax = plt.subplots(figsize=(9, 6))
-        layout = nx.spring_layout(graph, seed=SEED)
+        frozen_pilot = report["snapshot_sha256"] == PILOT_SNAPSHOT and len(sizes) == len(PILOT_LAYOUT)
+        fig, ax = plt.subplots(figsize=(11, 7) if frozen_pilot else (9, 6))
+        if frozen_pilot:
+            layout = dict(enumerate(PILOT_LAYOUT))
+            layout_name = "frozen-pilot"
+        else:
+            layout = nx.spring_layout(graph, seed=SEED)
+            layout_name, layout_seed = "spring", SEED
         node_areas = [35 + 12 * log1p(n) ** 2 for n in sizes]
         nx.draw_networkx_nodes(graph, layout, node_size=node_areas, node_color="#176780", ax=ax)
         nx.draw_networkx_edges(graph, layout, width=[.5 + .5 * log1p(graph[u][v]["weight"])
                                                     for u, v in graph.edges],
-                               node_size=node_areas, arrowsize=12,
-                               connectionstyle="arc3,rad=0.15", ax=ax)
+                               node_size=node_areas, arrowsize=9 if frozen_pilot else 12,
+                               connectionstyle="arc3,rad=0" if frozen_pilot else "arc3,rad=0.15",
+                               ax=ax)
         ax.set_title("Directed payments among the most active accounts")
         ax.set_axis_off()
         save(fig, "directed-network",
@@ -125,7 +142,8 @@ def plot(ledgers, full, report, output):
         "command_arguments": report["command_arguments"],
         "environment": report["environment"], "matplotlib": matplotlib.__version__,
         "networkx": nx.__version__, "bin_seconds": BIN, "amount_histogram_bins": 35,
-        "feature_histogram_bins": 25, "layout_seed": SEED, "graph_max_nodes": MAX_NODES,
+        "feature_histogram_bins": 25, "graph_layout": layout_name, "layout_seed": layout_seed,
+        "graph_max_nodes": MAX_NODES,
         "graph_slice": report["range"], "graph_selection": "incident payment count descending, address ascending",
         "graph_edges": len(edges), "graph_nodes": len(sizes), "files": files,
     })

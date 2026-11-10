@@ -41,13 +41,13 @@ The [audit commands](phases/phase5-audit.md#figure-audit) regenerate the frozen 
 
 ## Existing figure inventory
 
-The table groups distinct PNG filenames by generation stage. Audit repeats and tracking copies reuse the same filenames. The README gallery uses byte-for-byte copies of four existing PNGs.
+The table groups distinct PNG filenames by generation stage. Audit repeats and tracking copies reuse the same filenames. The README gallery uses three archived PNGs and a revised rendering of the original pilot network.
 
 | Figure | Purpose | Generation source |
 | --- | --- | --- |
 | `payment-counts.png`, `xrp-volume.png` | Eligible payment counts and delivered XRP by UTC minute | Phase 2 pilot coverage and normalized payments via [`analysis.py`](../src/xrpl_anomaly/analysis.py) and [`plots.py`](../src/xrpl_anomaly/plots.py). Phase 3A also replayed the pilot. |
 | `amount-fee.png`, `history-features.png` | Amount and fee distributions and eligible prior activity | Same Phase 2 and 3A plotting path |
-| [`directed-network.png`](images/directed-network.png) | Unlabeled directed pilot subgraph | Original Phase 2 pilot, ledgers 108187347–108187602, snapshot prefix `a90ec409114ee`, layout seed 42 |
+| [`directed-network.png`](images/directed-network.png) | Unlabeled directed pilot subgraph | Original Phase 2 pilot, ledgers 108187347–108187602, snapshot prefix `a90ec409114ee`. The fixed layout in [`plots.py`](../src/xrpl_anomaly/plots.py) separates the two senders with five shared recipients. The two isolates appear at lower right. |
 | `pilot-sparsity-and-ties.png`, `training-recurrence.png` | Pilot sparsity and score ties, plus training-block graph recurrence | [Phase 3B.1 training and pilot summaries](phases/phase3b1.md) |
 | `block-comparison.png`, `detector-scores.png`, `feature-ablation.png`, `feature-distributions.png`, `graph-recurrence.png`, `sparse-features.png`, `synthetic-severity.png` | Training and development comparisons, observed feature and score behavior, and controlled changes | [Phase 3B.2 development results](phases/phase3b2.md) via [`development_figures.py`](../src/xrpl_anomaly/development_figures.py) |
 | [`ablation-and-blocks.png`](images/ablation-and-blocks.png), `synthetic-families.png` | Synthetic average precision by feature set, test block, or perturbation family and strength | Frozen Phase 3B.3 evaluation, clean scores and model metadata via [`heldout_figures.py`](../src/xrpl_anomaly/heldout_figures.py). The gallery uses the [Phase 5 audited copy](phases/phase5-audit.md#figure-audit). |
