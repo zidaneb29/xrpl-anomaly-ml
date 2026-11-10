@@ -1,4 +1,6 @@
-# XRP Ledger anomaly detection
+# XRP Ledger Anomaly Detection — End-to-End ML Systems
+
+End-to-end ML system for XRP Ledger transaction anomaly detection, featuring temporal and graph-based features, reproducible model evaluation, FastAPI inference, Docker, CI, and drift monitoring.
 
 A local Python system that scores unusual XRP payments from validated Mainnet ledgers. XRPL provides public, ordered transaction history with exact integer amounts and a directed payment graph. This makes it possible to replay what the scorer could have known at each ledger and to measure how the models behave as activity changes over time.
 
@@ -70,3 +72,7 @@ Use the actual interpreter path if a Windows Store alias takes precedence. The s
 | Reproduce monitoring from local SQLite files and bundles | [Monitoring commands](docs/phase4d.md#reproduce-offline), [figure guide](docs/figures.md) |
 
 The synthetic demo runs from a source checkout. Full historical replay requires the original caches or SQLite files and frozen outputs, which are kept locally. Docker runtime and hosted GitHub Actions execution remain unverified.
+
+## License
+
+Project code and documentation are available under the [MIT License](LICENSE) where the project holds the rights to license them. Third-party dependencies, XRP Ledger data, and external services remain subject to their respective terms.
