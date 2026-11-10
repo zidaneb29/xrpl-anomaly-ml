@@ -8,7 +8,7 @@ from .features import FEATURES, SCHEMA_VERSION, WINDOW
 from .perturbations import FAMILIES, SEEDS
 from .pilot import MIB, digest
 
-CONFIG = Path("docs/phase3b3-protocol.json")
+CONFIG = Path("docs/protocols/phase3b3-protocol.json")
 RAW = Path("data/raw/phase3b3")
 SIZES = {"static": 256, "temporal": 128, "full": 256}
 LIMITS = (4500, 3072 * MIB, 10800)

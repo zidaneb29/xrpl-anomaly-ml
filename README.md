@@ -12,11 +12,13 @@ Read-only XRPL RPC → hash-checked ledger cache → normalized SQLite payments
 
 The main engineering work is recovering from interrupted acquisition, preserving integer drops and ledger order, excluding same-ledger and future activity from features, and carrying the exact calibration rule into serving. The core uses Python and SQLite. Matplotlib renders the evaluation figures, MLflow tracks the frozen experiment locally, and the repository includes a pinned Docker build and a GitHub Actions workflow.
 
+[Technical audit](docs/phases/phase5-audit.md) · [Figure gallery](#figure-gallery) · [Offline demo](#try-the-offline-demo) · [Documentation guide](#documentation-guide)
+
 ## Results
 
 The robust statistical baseline is the operational reference. The full Isolation Forest comparison gained 0.00233 macro average precision on held-out synthetic interventions, and the advantage reversed when the last test block was excluded. Forest recall was lower under both evaluated alert policies. The original Mainnet payments are unlabeled, so the evaluation measures sensitivity to controlled changes. It supplies no real-fraud accuracy estimate.
 
-Offline monitoring detected a large synthetic fee shift. Natural historical variation also frequently crossed the 0.20 empirical CDF distance guide, including forest scores in unchanged windows. The guide is descriptive. See the [technical audit](docs/phase5-audit.md) for the numerical results, figure provenance and verification boundaries.
+Offline monitoring detected a large synthetic fee shift. Natural historical variation also frequently crossed the 0.20 empirical CDF distance guide, including forest scores in unchanged windows. The guide is descriptive. See the [technical audit](docs/phases/phase5-audit.md) for the numerical results, figure provenance and verification boundaries.
 
 ## Figure gallery
 
@@ -26,7 +28,7 @@ Offline monitoring detected a large synthetic fee shift. Natural historical vari
 
 ![Synthetic held-out average precision by feature set and test block](docs/images/ablation-and-blocks.png)
 
-**Held-out synthetic evaluation.** Macro average precision compares the robust baseline with Isolation Forest on synthetic interventions in blocks 9–12. The panels use different vertical scales. Block 12 accounts for the forest's mean advantage with the full feature set. See the [held-out comparison](docs/phase3b3.md#synthetic-test-comparison).
+**Held-out synthetic evaluation.** Macro average precision compares the robust baseline with Isolation Forest on synthetic interventions in blocks 9–12. The panels use different vertical scales. Block 12 accounts for the forest's mean advantage with the full feature set. See the [held-out comparison](docs/phases/phase3b3.md#synthetic-test-comparison).
 
 ![Distribution distances and alert rates across unchanged Mainnet windows](docs/images/historical-monitoring.png)
 
@@ -34,7 +36,7 @@ Offline monitoring detected a large synthetic fee shift. Natural historical vari
 
 ![Synthetic fee shift and recovery alongside the same unchanged Mainnet rows](docs/images/shift-recovery.png)
 
-**Synthetic shift and recovery.** In the shaded block 8 window, the fee feature represents a fixed 100,000 drops for all 2,030 rows. The dashed orange line shows the same rows with their original fees. The next window uses unchanged observations. Score markers are medians and bars show the 5th–95th percentiles. See the [monitoring results](docs/phase4d.md#historical-behavior-and-controlled-shift) and [figure inventory](docs/figures.md#existing-figure-inventory).
+**Synthetic shift and recovery.** In the shaded block 8 window, the fee feature represents a fixed 100,000 drops for all 2,030 rows. The dashed orange line shows the same rows with their original fees. The next window uses unchanged observations. Score markers are medians and bars show the 5th–95th percentiles. See the [monitoring results](docs/phases/phase4d.md#historical-behavior-and-controlled-shift) and [figure inventory](docs/figures.md#existing-figure-inventory).
 
 ## Try the offline demo
 
@@ -81,15 +83,31 @@ python -B -m unittest discover -s tests -v
 
 Use the actual interpreter path if a Windows Store alias takes precedence. The suite requires local loopback sockets. Service and plotting checks require their optional dependencies. Frozen-model and container checks are opt-in.
 
+## Repository structure
+
+| Path | Contents |
+| --- | --- |
+| [`src/xrpl_anomaly/`](src/xrpl_anomaly/) | Ledger ingestion, feature replay, model evaluation, scoring API, and monitoring |
+| [`tests/`](tests/) | Offline tests for ingestion through serving and monitoring |
+| [`docs/`](docs/) | Data specification, feature and evaluation contracts, roadmap, and figure guide |
+| [`docs/phases/`](docs/phases/) | Historical phase reports and the final technical audit |
+| [`docs/protocols/`](docs/protocols/) | Frozen ledger manifest and machine-readable held-out protocol |
+| [`docs/images/`](docs/images/) | Four public figures used in the gallery |
+| [`Dockerfile`](Dockerfile), [`.github/workflows/offline.yml`](.github/workflows/offline.yml) | Container build and hosted offline checks |
+
+## Documentation guide
+
 | Task | Guide |
 | --- | --- |
-| Data provenance, bounded acquisition and cache recovery | [XRPL specification](docs/specification.md), [pilot commands](docs/specification.md#reproduce-the-phase-2-pilot), [chronological sample](docs/phase3b3.md) |
+| Data provenance, bounded acquisition and cache recovery | [XRPL specification](docs/specification.md), [pilot commands](docs/specification.md#reproduce-the-phase-2-pilot), [chronological sample](docs/phases/phase3b3.md) |
 | Feature definitions, leakage controls and experiment design | [Feature and evaluation contracts](docs/experiments.md), [architecture and roadmap](docs/roadmap.md) |
-| Generate, verify or load the three frozen models from existing local experiment outputs | [Model packaging and MLflow](docs/phase4a.md) |
-| API request contract, locked setup, Docker commands and CI | [Scoring API](docs/phase4b.md), [service and container guide](docs/phase4c.md) |
-| Reproduce monitoring from local SQLite files and bundles | [Monitoring commands](docs/phase4d.md#reproduce-offline), [figure guide](docs/figures.md) |
+| Follow the modeling work from pilot to held-out results | [Baseline analysis](docs/phases/phase3a.md), [training sample](docs/phases/phase3b1.md), [development comparison](docs/phases/phase3b2.md), [held-out evaluation](docs/phases/phase3b3.md) |
+| Inspect the frozen experiment inputs | [Ledger manifest](docs/protocols/phase3b-blocks.json), [held-out protocol](docs/protocols/phase3b3-protocol.json) |
+| Generate, verify or load the three frozen models from existing local experiment outputs | [Model packaging and MLflow](docs/phases/phase4a.md) |
+| API request contract, locked setup, Docker commands and CI | [Scoring API](docs/phases/phase4b.md), [service and container guide](docs/phases/phase4c.md) |
+| Reproduce monitoring from local SQLite files and bundles | [Monitoring commands](docs/phases/phase4d.md#reproduce-offline), [figure guide](docs/figures.md) |
 
-The synthetic demo runs from a source checkout. Full historical replay requires the original caches or SQLite files and frozen outputs, which are kept locally. Docker runtime and hosted GitHub Actions execution remain unverified.
+The synthetic demo runs from a source checkout. Full historical replay requires the original caches or SQLite files and frozen outputs, which are kept locally. The published revision passed the hosted Windows and Ubuntu offline jobs, including the synthetic Docker smoke checks on Ubuntu. The [Phase 5 audit](docs/phases/phase5-audit.md) records the earlier local verification scope.
 
 ## License
 

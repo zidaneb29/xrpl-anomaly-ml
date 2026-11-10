@@ -9,7 +9,7 @@ from pathlib import Path
 from .ledger import RIPPLE_EPOCH, digest_id, header, result, uint
 from .pilot import MIB, PRIMARY, SECONDARY, SETTINGS, Client, acquire_range, digest, dump
 
-PLAN = Path("docs/phase3b-blocks.json")
+PLAN = Path("docs/protocols/phase3b-blocks.json")
 ROOT = Path("data/raw/phase3b-training")
 MAX_ATTEMPTS = 1500
 MAX_BYTES = 1024 * MIB
