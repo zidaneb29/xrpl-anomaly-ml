@@ -1,6 +1,7 @@
 """Freeze validated UTC boundaries and stage the first two training blocks."""
 import argparse
 import json
+import os
 import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -107,9 +108,20 @@ def freeze(path):
     dump(path, plan)
 
 
-def acquire_initial(path, root):
-    import msvcrt
+def lock_stage(lock):
+    """Take an exclusive, nonblocking lock until the caller closes the file."""
+    if os.name == "nt":
+        import msvcrt
 
+        lock.seek(0)
+        msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+    else:
+        import fcntl
+
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+
+def acquire_initial(path, root):
     body = path.read_bytes()
     plan = json.loads(body)
     validate_plan(plan)
@@ -119,8 +131,7 @@ def acquire_initial(path, root):
         raise ValueError("two blocks require more attempts than the stage allows")
     root.mkdir(parents=True, exist_ok=True)
     with (root / "stage.lock").open("a+b") as lock:
-        lock.seek(0)
-        msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+        lock_stage(lock)
         acquire_locked(root, blocks, digest(body))
 
 
@@ -143,7 +154,6 @@ def acquire_next(path=PLAN, root=NEXT_ROOT):
 
 
 def acquire_stage(root, blocks, first_number, limits, storage):
-    import msvcrt
     import shutil
 
     minimum = sum(b["headers"][-2][0] - b["headers"][0][0] + 4 for b in blocks)
@@ -151,8 +161,7 @@ def acquire_stage(root, blocks, first_number, limits, storage):
         raise ValueError("frozen ranges exceed the request ceiling")
     root.mkdir(parents=True, exist_ok=True)
     with (root / "stage.lock").open("a+b") as lock:
-        lock.seek(0)
-        msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+        lock_stage(lock)
         existing = sum(p.stat().st_size for p in root.rglob("*") if p.is_file())
         if shutil.disk_usage(root).free < storage - existing + 64 * MIB:
             raise RuntimeError("insufficient free space for the bounded stage")

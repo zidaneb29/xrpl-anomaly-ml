@@ -9,7 +9,9 @@ from unittest.mock import patch
 
 from xrpl_anomaly.development import GROUPS, compare, compare_ranks, metrics
 from test_phase2 import BIG, encoded, fixture, identity
-from xrpl_anomaly.expansion import FROZEN_DIGEST, PLAN, acquire_locked, acquire_next, development_plan
+from xrpl_anomaly.expansion import (
+    FROZEN_DIGEST, PLAN, acquire_initial, acquire_locked, acquire_next, development_plan,
+)
 from xrpl_anomaly.expansion_report import report, scored_features
 from xrpl_anomaly.features import FEATURES
 from xrpl_anomaly.isolation import IsolationForest
@@ -34,6 +36,29 @@ def sample(block=0):
 
 
 class DevelopmentTests(unittest.TestCase):
+    def test_stage_lock_rejects_a_second_writer(self):
+        with tempfile.TemporaryDirectory(dir=".") as folder:
+            root = Path(folder)
+
+            def try_second_writer(*args, **kwargs):
+                with self.assertRaises(OSError):
+                    acquire_next(PLAN, root)
+
+            with patch("xrpl_anomaly.expansion.acquire_locked", side_effect=try_second_writer) as acquire:
+                acquire_initial(PLAN, root)
+                acquire.assert_called_once()
+
+    def test_stage_lock_releases_after_failure(self):
+        with tempfile.TemporaryDirectory(dir=".") as folder:
+            root = Path(folder)
+            with patch("xrpl_anomaly.expansion.acquire_locked", side_effect=RuntimeError("fixture failure")):
+                with self.assertRaisesRegex(RuntimeError, "fixture failure"):
+                    acquire_next(PLAN, root)
+
+            with patch("xrpl_anomaly.expansion.acquire_locked") as acquire:
+                acquire_next(PLAN, root)
+                acquire.assert_called_once()
+
     def test_frozen_scope_and_modified_manifest(self):
         blocks = development_plan(PLAN)
         self.assertEqual([b["role"] for b in blocks], ["train"] * 4 + ["development"] * 2)
