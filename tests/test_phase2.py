@@ -117,6 +117,28 @@ class LedgerTests(unittest.TestCase):
                 db.close()
 
 
+    def test_sqlite_reingestion_rejects_changed_payment_rows(self):
+        first = parse(encoded(fixture()), 10)
+        for sql in (
+            "UPDATE payment SET amount = amount - 1",
+            "DELETE FROM payment",
+            "INSERT INTO payment SELECT ledger_idx, position + 1, 'extra', sender, receiver, amount, fee FROM payment",
+        ):
+            with self.subTest(sql=sql):
+                db = connect(":memory:")
+                try:
+                    store(db, first, "first")
+                    with db:
+                        db.execute(sql)
+                    before = list(replay(db))
+                    with self.assertRaisesRegex(ValueError, "normalized payments.*10"):
+                        store(db, first, "first")
+                    self.assertEqual(list(replay(db)), before)
+                    self.assertFalse(db.in_transaction)
+                finally:
+                    db.close()
+
+
 class FeatureTests(unittest.TestCase):
     def test_strict_prior_same_ledger_future_and_window_expiry(self):
         input_rows = [(1, 0, rows()), (2, 600, rows(second=True)), (3, 601, rows())]

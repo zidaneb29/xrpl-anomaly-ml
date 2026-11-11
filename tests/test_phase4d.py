@@ -5,6 +5,7 @@ import sqlite3
 import tempfile
 import unittest
 from contextlib import closing
+from hashlib import sha256
 from pathlib import Path
 from unittest.mock import patch
 
@@ -71,13 +72,18 @@ class MonitoringTests(unittest.TestCase):
         }
         with tempfile.TemporaryDirectory(dir=".") as folder:
             root = Path(folder)
+            ledgers = [(idx, f"{idx:064X}", f"{idx - 1:064X}", close, f"{idx:064x}")
+                       for idx, close in enumerate(range(0, 2400, 300), 1)]
+            snapshot = sha256(json.dumps([(row[0], row[4]) for row in ledgers]).encode()).hexdigest()
+            bundle["provenance"]["snapshots"].update({str(i): snapshot for i in range(7, 13)})
             save(root / "baseline-full.json", bundle)
             paths = [root / f"phase3b3-block-{i:02d}.sqlite" for i in range(7, 13)]
             expected = []
             for path in paths:
                 with closing(connect(path)) as db, db:
-                    for idx, close in enumerate(range(0, 2400, 300), 1):
-                        db.execute("INSERT INTO ledger VALUES (?, ?, ?, ?, ?)", (idx, str(idx), "", close, ""))
+                    for ledger in ledgers:
+                        idx = ledger[0]
+                        db.execute("INSERT INTO ledger VALUES (?, ?, ?, ?, ?)", ledger)
                         for position in range(100):
                             identity = boundary if idx == 3 and position == 0 else f"{idx * 100 + position:064X}"
                             db.execute("INSERT INTO payment VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -86,13 +92,41 @@ class MonitoringTests(unittest.TestCase):
                                 expected.append(baseline.alert_key(0.0, identity) > cutoff)
             before = [monitoring_replay.sha256(path) for path in paths]
             config = {"roles": ["train"] * 4 + ["development"] * 2 + ["calibration"] * 2 + ["test"] * 4}
-            blocks = [{"start": 600, "role": role} for role in config["roles"]]
+            headers = [[idx, close, identity] for idx, identity, _, close, _ in ledgers]
+            headers.append([9, 2400, f"{9:064X}"])
+            bounds = [headers[i] for i in (0, 1, 1, 2, 7, 8)]
+            blocks = [{"start": 600, "role": role, "headers": bounds} for role in config["roles"]]
             with (patch.object(monitoring_replay, "MODEL_DIR", root),
                   patch.object(monitoring_replay, "PROCESSED", root),
                   patch.object(monitoring_replay, "protocol", return_value=(config, blocks))):
                 first = monitoring_replay.run("baseline-full")
                 self.assertEqual(first, monitoring_replay.run("baseline-full"))
             self.assertEqual(before, [monitoring_replay.sha256(path) for path in paths])
+            with (patch.object(monitoring_replay, "MODEL_DIR", root),
+                  patch.object(monitoring_replay, "PROCESSED", root),
+                  patch.object(monitoring_replay, "protocol", return_value=(config, blocks))):
+                for change, undo, message in (
+                    ("UPDATE ledger SET digest = 'changed' WHERE idx = 4",
+                     f"UPDATE ledger SET digest = '{ledgers[3][4]}' WHERE idx = 4", "snapshot"),
+                    ("INSERT INTO ledger VALUES (9, 'extra', '', 2400, '')",
+                     "DELETE FROM ledger WHERE idx = 9", "range"),
+                    ("UPDATE ledger SET hash = 'changed' WHERE idx = 8",
+                     f"UPDATE ledger SET hash = '{ledgers[7][1]}' WHERE idx = 8", "boundary"),
+                    ("UPDATE ledger SET parent = 'changed' WHERE idx = 4",
+                     f"UPDATE ledger SET parent = '{ledgers[3][2]}' WHERE idx = 4", "chain"),
+                    ("UPDATE ledger SET close_unix = 600 WHERE idx = 4",
+                     "UPDATE ledger SET close_unix = 900 WHERE idx = 4", "chain"),
+                ):
+                    with self.subTest(change=change):
+                        with closing(connect(paths[0])) as db:
+                            with db:
+                                db.execute(change)
+                            try:
+                                with self.assertRaisesRegex(ValueError, f"block 7.*{message}"):
+                                    monitoring_replay.run("baseline-full")
+                            finally:
+                                with db:
+                                    db.execute(undo)
         self.assertEqual(first["feature_schema"]["names"], FEATURES)
         self.assertEqual(len(first["historical"]), 18)
         self.assertEqual(first["historical"][0]["frozen_alerts"]["alerts"], sum(expected))

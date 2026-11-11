@@ -16,6 +16,7 @@ from .heldout_protocol import protocol
 from .model_artifact import VERSION, load
 from .monitoring import DRIFT_GUIDE, MIN_DRIFT_N, alert_summary, distribution, drift
 from .package_models import MODELS, OUTPUT as MODEL_DIR
+from .pilot import digest
 from .storage import replay
 
 OUTPUT = Path("reports/generated")
@@ -30,6 +31,23 @@ FEE_COLUMN = FEATURES.index("log_fee_drops")
 def sha256(path):
     with path.open("rb") as stream:
         return file_digest(stream, "sha256").hexdigest()
+
+
+def verify_snapshot(db, number, headers, expected_digest):
+    rows = db.execute("SELECT idx, hash, parent, close_unix, digest FROM ledger ORDER BY idx").fetchall()
+    low, high = headers[0][0], headers[-2][0]
+    if [row[0] for row in rows] != list(range(low, high + 1)):
+        raise ValueError(f"block {number}: database ledger range does not match frozen range {low}–{high}")
+    for index, close, identity in headers[:-1]:
+        if (rows[index - low][3], rows[index - low][1]) != (close, identity):
+            raise ValueError(f"block {number}: frozen boundary mismatch at ledger {index}")
+    for previous, current in zip(rows, rows[1:]):
+        if current[2] != previous[1] or current[3] <= previous[3]:
+            raise ValueError(f"block {number}: broken ledger chain at ledger {current[0]}")
+    # Match the frozen snapshot encoding in expansion_report, independent of SQLite file layout.
+    snapshot = [(index, checksum) for index, _, _, _, checksum in rows]
+    if digest(json.dumps(snapshot).encode()) != expected_digest:
+        raise ValueError(f"block {number}: database snapshot digest does not match the frozen bundle")
 
 
 def block_windows(rows, start):
@@ -97,6 +115,7 @@ def run(model_id):
         path = (PROCESSED / f"phase3b3-block-{number:02d}.sqlite").resolve()
         result["inputs"][number] = {"sqlite_sha256": sha256(path), "role": block["role"]}
         with closing(sqlite3.connect(path.as_uri() + "?mode=ro&immutable=1", uri=True)) as db:
+            verify_snapshot(db, number, block["headers"], detector.snapshots[str(number)])
             windows = block_windows(scored_features(replay(db), start), start)
         if number == REFERENCE_BLOCK:
             rows = [row for window in windows for row in window]

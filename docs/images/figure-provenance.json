@@ -1,0 +1,47 @@
+{
+  "base_git_revision": "418c6f78a02ec10c587cbf9e732446b65b94e741",
+  "rendering": "Phase B working tree; renderer digests identify uncommitted source",
+  "python": "3.14.7",
+  "matplotlib": "3.10.9",
+  "platform": "Windows-11-10.0.26100-SP0",
+  "figures": {
+    "calibration.png": {
+      "sha256": "887a3db78affd4559110de400985805ce9126c6c49d8cfe08cd88e15b8761e28",
+      "renderer": "src/xrpl_anomaly/heldout_figures.py",
+      "renderer_sha256": "b03102dd4cd6128234ae32239dbd30c01c1b68cdc92eed5dc6c49974d63d5d1c",
+      "renderer_sha256_lf": "b03102dd4cd6128234ae32239dbd30c01c1b68cdc92eed5dc6c49974d63d5d1c",
+      "inputs": {
+        "reports/generated/phase3b3/clean-scores.csv": "d63ca12f01b1e11f02e91152cf7a21fa32c6a1f7b1bc939aa38bfd7fab53daf1",
+        "reports/generated/phase3b3/models.json": "52e7feac1f72477aba5fb3dbb6c47545c40e3a6dbd1eaf92b09075a2f39521b7"
+      }
+    },
+    "detector-scores.png": {
+      "sha256": "4a7b103764e609cce3dc7936a19a9727dc2b4d8342a96b8bea5281d85c54af8b",
+      "renderer": "src/xrpl_anomaly/development_figures.py",
+      "renderer_sha256": "8163bd61affd918f3feca9a10149054053e3858b4f1d912498c9d4cf7cd2c999",
+      "renderer_sha256_lf": "3e633b67c50198e265c97afce100c5891f9c2a5d4fafd2768d13bb1a05886a94",
+      "inputs": {
+        "reports/generated/phase3b2/development-scores.csv": "16e6f44c012f9948eb9c12421e190a1632b926bf55e322a2ff529e97d03dbaaf",
+        "reports/generated/phase3b2/evaluation.json": "3b7f070855bd4cd236e6a50f5943868d5e69a5fe7283ebb3c5d8bae8c123ba7c"
+      }
+    },
+    "historical-monitoring.png": {
+      "sha256": "e112980178ed3370268904139a07d4fe7dfd8af42c7ac00dca54150504083f68",
+      "renderer": "src/xrpl_anomaly/monitoring_figures.py",
+      "renderer_sha256": "ae1586ec12039d8a074677864634932347b33cc446ef1dc40364afdbd054c430",
+      "renderer_sha256_lf": "2605314a4c43f79b579c80c86edc0a6b35f6a1690c29d0f9a4d5d03c25b4dd1b",
+      "inputs": {
+        "reports/generated/phase4d-phase5-audit/monitoring.json": "35ca20efe7f36e20b45c7b3a9b0b341853840226c9eb3f74351cade2d44f4055"
+      }
+    },
+    "shift-recovery.png": {
+      "sha256": "9bc1fb1a97834959acaf9c6a70b1b7cf5dc5720252f9be819479872dfcd92052",
+      "renderer": "src/xrpl_anomaly/monitoring_figures.py",
+      "renderer_sha256": "ae1586ec12039d8a074677864634932347b33cc446ef1dc40364afdbd054c430",
+      "renderer_sha256_lf": "2605314a4c43f79b579c80c86edc0a6b35f6a1690c29d0f9a4d5d03c25b4dd1b",
+      "inputs": {
+        "reports/generated/phase4d-phase5-audit/monitoring.json": "35ca20efe7f36e20b45c7b3a9b0b341853840226c9eb3f74351cade2d44f4055"
+      }
+    }
+  }
+}

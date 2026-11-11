@@ -16,9 +16,9 @@ The main engineering work is recovering from interrupted acquisition, preserving
 
 ## Results
 
-The robust statistical baseline is the operational reference. The full Isolation Forest comparison gained 0.00233 macro average precision on held-out synthetic interventions, and the advantage reversed when the last test block was excluded. Forest recall was lower under both evaluated alert policies. The original Mainnet payments are unlabeled, so the evaluation measures sensitivity to controlled changes. It supplies no real-fraud accuracy estimate.
+The robust statistical baseline is the operational reference. On the edited held-out streams, the full Isolation Forest averaged 0.00233 higher macro average precision (AP), and the advantage reversed when the last test block was excluded. The same selected payments already gave the forest a 0.00235 AP advantage on the original streams. One full forest fit gained AP after editing and the other lost AP. Forest recall was lower under both evaluated alert policies. These results describe ranking and alert behavior under a controlled selection and editing procedure. The original Mainnet payments are unlabeled. [Matched evaluation](docs/phases/phase-c-interpretation.md#matched-original-and-edited-rankings)
 
-Offline monitoring detected a large synthetic fee shift. Natural historical variation also frequently crossed the 0.20 empirical CDF distance guide, including forest scores in unchanged windows. The guide is descriptive. See the [technical audit](docs/phases/phase5-audit.md) for the numerical results, figure provenance and verification boundaries.
+In offline replay, overriding one prepared fee coordinate moved baseline score distance from 0.190 to 1.000 on the same rows. Unchanged historical windows also frequently crossed the descriptive 0.20 distance guide. The final stage uses the next unchanged input window with a stateless scorer. The replay provides evidence about distribution shift for this intervention. Fraud detection and operational incident response remain unevaluated. [Monitoring interpretation](docs/phases/phase-c-interpretation.md#prepared-fee-override-and-historical-crossings)
 
 ## Figure gallery
 
@@ -28,15 +28,17 @@ Offline monitoring detected a large synthetic fee shift. Natural historical vari
 
 ![Synthetic held-out average precision by feature set and test block](docs/images/ablation-and-blocks.png)
 
-**Held-out synthetic evaluation.** Macro average precision compares the robust baseline with Isolation Forest on synthetic interventions in blocks 9–12. The panels use different vertical scales. Block 12 accounts for the forest's mean advantage with the full feature set. See the [held-out comparison](docs/phases/phase3b3.md#synthetic-test-comparison).
+**Held-out synthetic evaluation.** Macro average precision compares the robust baseline with Isolation Forest on synthetic interventions in blocks 9–12. The panels use different vertical scales. Forest ablations also use different development-selected subsample sizes. Block 12 accounts for the forest's mean advantage with the full feature set. See the [held-out comparison](docs/phases/phase3b3.md#synthetic-test-comparison).
+
+The bars rank intervention-selected payment identities on the edited streams. See the [matched original-stream AP and configuration comparison](docs/phases/phase-c-interpretation.md#matched-original-and-edited-rankings) for how much of the ranking was already present before the edits.
 
 ![Distribution distances and alert rates across unchanged Mainnet windows](docs/images/historical-monitoring.png)
 
-**Historical monitoring.** Eighteen unchanged ten-minute Mainnet windows contain 23,677 observations. The upper panel compares feature and score distributions against block 7, which overlaps its own reference. The lower panel shows alert rates under the frozen rule. The 0.20 distance guide is descriptive.
+**Historical monitoring.** Eighteen unchanged ten-minute Mainnet windows contain 23,677 observations. Lines connect windows within each block. Shaded, compressed gaps identify unsampled days. The upper panel compares distributions against block 7, which overlaps its own reference. The lower panel labels the block 7 alert rate (0.851%) and the pooled calibration budget target (1%) separately. The 0.20 distance guide is descriptive.
 
-![Synthetic fee shift and recovery alongside the same unchanged Mainnet rows](docs/images/shift-recovery.png)
+![Synthetic fee override and restored original input alongside the same unchanged Mainnet rows](docs/images/shift-recovery.png)
 
-**Synthetic shift and recovery.** In the shaded block 8 window, the fee feature represents a fixed 100,000 drops for all 2,030 rows. The dashed orange line shows the same rows with their original fees. The next window uses unchanged observations. Score markers are medians and bars show the 5th–95th percentiles. See the [monitoring results](docs/phases/phase4d.md#historical-behavior-and-controlled-shift) and [figure inventory](docs/figures.md#existing-figure-inventory).
+**Synthetic fee override and restored input.** In the shaded block 8 window, the fee feature represents a fixed 100,000 drops for all 2,030 rows. Orange crosses show the same rows with their original fees. Both score series show medians and capped 5th–95th percentile intervals. All three quantiles coincide at 69.98 for the overridden window. The final stage reuses the next unchanged window in a stateless scorer. See the [monitoring results](docs/phases/phase4d.md#historical-behavior-and-controlled-shift) and [figure corrections](docs/phases/phase-b-figures.md).
 
 ## Try the offline demo
 
@@ -92,7 +94,7 @@ Use the actual interpreter path if a Windows Store alias takes precedence. The s
 | [`docs/`](docs/) | Data specification, feature and evaluation contracts, roadmap, and figure guide |
 | [`docs/phases/`](docs/phases/) | Historical phase reports and the final technical audit |
 | [`docs/protocols/`](docs/protocols/) | Frozen ledger manifest and machine-readable held-out protocol |
-| [`docs/images/`](docs/images/) | Four public figures used in the gallery |
+| [`docs/images/`](docs/images/) | Public figures used in the gallery and figure guide |
 | [`Dockerfile`](Dockerfile), [`.github/workflows/offline.yml`](.github/workflows/offline.yml) | Container build and hosted offline checks |
 
 ## Documentation guide
@@ -107,7 +109,7 @@ Use the actual interpreter path if a Windows Store alias takes precedence. The s
 | API request contract, locked setup, Docker commands and CI | [Scoring API](docs/phases/phase4b.md), [service and container guide](docs/phases/phase4c.md) |
 | Reproduce monitoring from local SQLite files and bundles | [Monitoring commands](docs/phases/phase4d.md#reproduce-offline), [figure guide](docs/figures.md) |
 
-The synthetic demo runs from a source checkout. Full historical replay requires the original caches or SQLite files and frozen outputs, which are kept locally. The published revision passed the hosted Windows and Ubuntu offline jobs, including the synthetic Docker smoke checks on Ubuntu. The [Phase 5 audit](docs/phases/phase5-audit.md) records the earlier local verification scope.
+The synthetic demo runs from a source checkout. Full historical replay requires the original caches or SQLite files and frozen outputs, which are kept locally. The earlier revision [`418c6f7`](https://github.com/zidaneb29/xrpl-anomaly-ml/commit/418c6f78a02ec10c587cbf9e732446b65b94e741) passed the hosted Windows and Ubuntu offline jobs, including the synthetic Docker smoke checks on Ubuntu. The [Phase 5 audit](docs/phases/phase5-audit.md) records the earlier local verification scope.
 
 ## License
 

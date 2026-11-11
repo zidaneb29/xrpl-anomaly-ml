@@ -40,7 +40,7 @@ class ModelArtifactTests(unittest.TestCase):
     def setUp(self):
         self.parameters = baseline.fit(ROWS, FEATURES)
         self.value = baseline.score(ROWS[20], FEATURES, self.parameters)[0]
-        self.cutoff = baseline.alert_key(self.value, "boundary")
+        self.cutoff = baseline.alert_key(self.value, "AB" * 32)
         self.bundle = fixture("baseline-full", "robust_baseline", BASELINE_CONFIG, self.parameters,
                               list(FEATURES[1:]), self.cutoff)
 
@@ -57,7 +57,7 @@ class ModelArtifactTests(unittest.TestCase):
             self.assertEqual(score.anomaly_score, self.value)
             self.assertEqual(score, model.score(ROWS[20], **SCHEMA))
             self.assertEqual(model.cutoff, self.cutoff)
-            self.assertFalse(model.alerts(score, identity="boundary"))
+            self.assertFalse(model.alerts(score, identity=self.cutoff[2]))
             for identity in ("a", "b", "c", "d", "e"):
                 self.assertEqual(model.alerts(score, identity=identity),
                                  baseline.alert_key(self.value, identity) > self.cutoff)
@@ -73,12 +73,12 @@ class ModelArtifactTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "different artifact"):
                 save(first, changed)
             with self.assertRaises(ValueError):
-                decode(changed).alerts(score, identity="boundary")
+                decode(changed).alerts(score, identity=self.cutoff[2])
 
     def test_forest_round_trip(self):
         config = dict(size=256, seed=7, trees=64)
         forest = IsolationForest.fit(ROWS, **config)
-        cutoff = baseline.alert_key(forest.score(ROWS[0]), "boundary")
+        cutoff = baseline.alert_key(forest.score(ROWS[0]), "AB" * 32)
         bundle = fixture("isolation-full-7", "isolation_forest", config, asdict(forest),
                          list(FEATURES[1:]), cutoff)
         # Historical fitted state uses JSON arrays for forest columns and trees.
@@ -106,6 +106,19 @@ class ModelArtifactTests(unittest.TestCase):
         for row, schema in cases:
             with self.subTest(row=row, schema=schema), self.assertRaises(ValueError):
                 model.score(row, **schema)
+
+    def test_rejects_noncanonical_frozen_metadata(self):
+        for section, key, invalid, message in (
+            ("training", "blocks", [True, 2, 3, 4], "training split"),
+            ("training", "blocks", [1, 2.0, 3, 4], "training split"),
+            ("calibration", "blocks", [7.0, 8], "calibration policy"),
+            ("calibration", "cutoff", list(baseline.alert_key(self.value, "not-a-hash")), "calibration key"),
+            ("calibration", "cutoff", list(baseline.alert_key(self.value, "ab" * 32)), "calibration key"),
+        ):
+            bundle = copy.deepcopy(self.bundle)
+            bundle[section][key] = invalid
+            with self.subTest(invalid=invalid), self.assertRaisesRegex(ValueError, message):
+                decode(bundle)
 
     def test_invalid_artifacts(self):
         for section, key, invalid in (

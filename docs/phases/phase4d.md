@@ -1,4 +1,4 @@
-# Phase 4D local monitoring and recovery
+# Phase 4D local monitoring and prepared-feature replay
 
 ## API metrics
 
@@ -44,19 +44,19 @@ The replay opens the six SQLite files in immutable read-only mode. It reuses the
 
 ## Historical behavior and controlled shift
 
-The run covered 23,677 unchanged rows in 18 windows across blocks 7–12. Baseline alert rates in the 12 final-test windows ranged from 0.66% to 5.43%. Fee and score distance each crossed the guide in 10 of those windows. At least one feature crossed the guide in all 12 final-test windows and 3 of 6 calibration windows. These unmodified observations establish the background rate of guide crossings. Ground truth for operational incidents is unavailable.
+The run covered 23,677 unchanged rows in 18 windows across blocks 7–12. Baseline alert rates in the 12 final-test windows ranged from 0.66% to 5.43%. Fee and score distance each crossed the guide in 10 of those windows. At least one feature crossed the guide in all 12 final-test windows and 3 of 6 calibration windows. These are observed crossing counts for the sampled windows. Operational incident labels would be needed to estimate a false-alarm rate.
 
 The scenario uses block 8's first window unchanged, sets the prepared `log_fee_drops` coordinate to `log1p(100000)` in the second, and uses the third window unchanged. The fixed window and fee require no random seed. The second window contains 2,030 vectors, of which 2,029 changed because one already had that fee. Original row identities, order and all other coordinates are preserved. The unchanged second window provides a same-row control. The intervention acts on prepared vectors and leaves historical storage and feature state intact. It models a large fee-input shift and does not simulate ledger execution or provide verified fraud labels.
 
 | Baseline segment | n | Fee D | Score D | Median score | Frozen alerts |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Reference block 7 | 5,406 | — | — | 9.53 | 46 (0.85%) |
-| Normal | 1,452 | 0.126 | 0.131 | 5.69 | 25 (1.72%) |
+| First window, unchanged | 1,452 | 0.126 | 0.131 | 5.69 | 25 (1.72%) |
 | Middle window, unchanged | 2,030 | 0.192 | 0.190 | 12.36 | 16 (0.79%) |
 | Middle window, synthetic | 2,030 | 1.000 | 1.000 | 69.98 | 2,030 (100%) |
-| Recovery | 1,341 | 0.128 | 0.194 | 4.34 | 15 (1.12%) |
+| Final window, original input restored | 1,341 | 0.128 | 0.194 | 4.34 | 15 (1.12%) |
 
-Both baseline distances fell below the 0.20 guide in recovery. Score distance remained higher than in the normal window. Among the forest comparisons, score D reached 0.278 for seed 7 and 0.242 for seed 29 under intervention. It fell to 0.212 and 0.234 in recovery, respectively. All three clean block 8 windows already exceeded the score guide for both forests, so the guide could not separate the synthetic segment from normal variation for those scores. The seed 29 response was especially weak in the recovery comparison. These findings describe sensitivity to one large, deliberately localized perturbation.
+Both baseline distances were below the 0.20 guide when the replay used the next unchanged window. Score distance remained higher than in the first window. For forest seed 7, same-window score D went from 0.220 to 0.278 under the override. For seed 29 it went from 0.256 to 0.242. The next unchanged window gave 0.212 and 0.234, respectively. All three original block 8 windows crossed the score guide for both forests. The final stage uses the next original window directly, with no state to recover in the scorer. This demonstrates a response to one prepared-feature shift. Automated operational recovery and incident performance require separate evaluation. [Paired monitoring results](phase-c-interpretation.md#prepared-fee-override-and-historical-crossings)
 
 ## Verification boundary
 

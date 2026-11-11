@@ -86,7 +86,9 @@ Full-forest macro AP exceeded the baseline by 0.00233. The paired block differen
 
 The synthetic evaluation reports matched score changes for the same payments, recall for the original counterpart scores, and separate direct, spillover and unchanged alert counts. AP includes the full synthetic stream and uses only directly changed identities as positives. Eligibility depends on the original activity histories, and concentration changes affect downstream feature vectors. Test observations can share accounts both within and across blocks. These four blocks support descriptive comparisons and do not establish precision or recall for real fraud. Lower operating alert rates for the forest affect its cutoff recall relative to the baseline.
 
-With ties counted as half wins, forest scores rose relative to the same clean payments in 61–67% of amount pairs, 23–24% of burst pairs and 69–79% of concentration pairs across the two forest seeds. The largest affected cohorts per copy were 541 for amount, 270 for burst and 818 for concentration. Higher matched concentration scores coexisted with zero forest recall under either alert policy.
+Across the two forest fits, the matched score win statistic was 61–67% for amount, 23–24% for burst and 69–79% for concentration. The statistic assigns one to an increase, half to a tie and zero to a decrease. The largest affected cohorts per copy were 541 for amount, 270 for burst and 818 for concentration. Higher matched concentration scores coexisted with zero forest recall under either alert policy.
+
+The [Phase C matched comparison](phase-c-interpretation.md) gives the selected identities the same labels on the original and edited streams. The full forest AP gap was +0.002346 on the original streams and +0.002333 on the edited streams. The forest fits' individual AP changes have opposite signs. The supplement reports both fits separately, separates the graph feature increment from subsample selection, and traces recipient redirects through earlier-ledger features.
 
 ## Operational costs and figures
 
@@ -106,4 +108,4 @@ The full offline suite passed 32 tests on CPython 3.14 in the existing plotting 
 
 ## Phase boundary
 
-The results establish a classical reference with reproducible operating thresholds, but give weak support for prioritizing the full forest in an alerting system. A separate neural experiment could test a distinct modeling hypothesis under a new untouched evaluation split. These results do not establish a performance case for that experiment. The recommended next phase is to operationalize the classical scoring and data-quality monitoring locally, with approval before beginning any new phase.
+The results establish a classical reference with reproducible operating thresholds. The baseline's higher edited-stream recall under both alert rules and lower scoring cost support its use as the operational reference for this study. The small aggregate forest AP gap was already present for the selected identities on the original streams, so it supplies weak evidence for prioritizing that forest as an alerting system. A separate neural experiment would test a distinct modeling hypothesis on a new untouched evaluation split.

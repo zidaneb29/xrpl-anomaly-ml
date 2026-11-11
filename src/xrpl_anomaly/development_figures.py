@@ -1,9 +1,67 @@
 """Reproducible Phase 3B.2 plots using the existing optional plotting environment."""
+import csv
+import json
+from collections import Counter, defaultdict
 from pathlib import Path
 from statistics import mean
 
 from .features import FEATURES
 from .pilot import digest, dump
+
+
+def score_multiplicity(robust, forest):
+    if robust.keys() != forest.keys():
+        raise ValueError("score pairs require identical observation identities")
+    return sorted(Counter((robust[i], forest[i]) for i in robust).items(), key=lambda item: (item[1], item[0]))
+
+
+def detector_score_figure(predictions, size):
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import LogNorm
+    from matplotlib.ticker import ScalarFormatter
+
+    key = f"isolation-full-{size}-7"
+    pairs = [score_multiplicity(predictions["baseline-full"][i], predictions[key][i]) for i in (4, 5)]
+    maximum = max(count for block in pairs for _, count in block)
+    norm = LogNorm(vmin=1, vmax=max(2, maximum))
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4.5), layout="constrained")
+    for index, ax, block in zip((4, 5), axes, pairs, strict=True):
+        points = [pair for pair, _ in block]
+        counts = [count for _, count in block]
+        dots = ax.scatter([x for x, _ in points], [y for _, y in points], c=counts,
+                          s=10, norm=norm, cmap="viridis", linewidths=0)
+        ax.set(xscale="symlog", xlabel="Robust deviation (symlog)", ylabel="Isolation score",
+               title=f"Block {index + 1}: n={sum(counts):,}; {len(points):,} score pairs")
+    bar = fig.colorbar(dots, ax=axes, label="Payments per exact score pair (log color scale)")
+    ticks = sorted({1, maximum, *(n for n in (2, 5, 10, 20, 50, 100) if n <= maximum)})
+    bar.set_ticks(ticks)
+    bar.ax.yaxis.set_major_formatter(ScalarFormatter())
+    bar.ax.minorticks_off()
+    fig.suptitle("Development scores; identical pairs counted together")
+    return fig
+
+
+def render_detector_scores(source, output):
+    """Render only the affected scatterplot from the frozen score table."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    evaluation = json.loads((source / "evaluation.json").read_bytes())
+    predictions = defaultdict(lambda: defaultdict(dict))
+    with (source / "development-scores.csv").open(encoding="utf-8", newline="") as file:
+        for row in csv.DictReader(file):
+            predictions[row["model"]][int(row["block"]) - 1][row["identity"]] = float(row["score"])
+    fig = detector_score_figure(predictions, evaluation["selected"]["full"]["size"])
+    path = output / "detector-scores.png"
+    fig.savefig(path, dpi=150, metadata={"Software": "xrpl-anomaly-ml"})
+    plt.close(fig)
+    dump(output / "figure-metadata.json", dict(
+        matplotlib=matplotlib.__version__, source_sha256=digest(Path(__file__).read_bytes()),
+        inputs={name: digest((source / name).read_bytes()) for name in ("evaluation.json", "development-scores.csv")},
+        outputs={path.name: digest(path.read_bytes())},
+        caption="Exact score pairs retain their coordinates. Logarithmic color encodes payment multiplicity, "
+                "with one shared color scale across both development blocks. No jitter or score changes."))
 
 
 def render(output, blocks, originals, predictions, evaluation):
@@ -71,14 +129,7 @@ def render(output, blocks, originals, predictions, evaluation):
     records = [r for r in evaluation["results"] if "ap" in r and
                (r["method"] == "baseline" or r["size"] == selected[r["group"]]["size"])]
     if "full" in selected:
-        key = f"isolation-full-{selected['full']['size']}-7"
-        fig, axes = plt.subplots(1, 2, figsize=(9, 4), layout="constrained")
-        for index, ax in zip((4, 5), axes, strict=True):
-            robust = predictions["baseline-full"][index]
-            forest = predictions[key][index]
-            ax.scatter([robust[i] for i in robust], [forest[i] for i in robust], s=3, alpha=0.18)
-            ax.set(xscale="symlog", xlabel="Robust deviation (symlog)", ylabel="Isolation score",
-                   title=f"Development block {index + 1}")
+        fig = detector_score_figure(predictions, selected["full"]["size"])
         save(fig, "detector-scores")
 
     if records:

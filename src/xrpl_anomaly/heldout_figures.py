@@ -1,13 +1,74 @@
 """Render held-out figures from deterministic Phase 3B.3 artifacts."""
 import csv
 import json
-from collections import defaultdict
+from collections import Counter, defaultdict
+from pathlib import Path
 from statistics import mean
 
 from .pilot import digest, dump
 
 FULL = ("baseline-full", "isolation-full-7", "isolation-full-29")
 LABELS = ("Robust baseline", "Forest seed 7", "Forest seed 29")
+
+
+def empirical_survival(values):
+    """Right-continuous empirical P(score > x), with one jump per distinct score."""
+    counts = Counter(values)
+    levels = sorted(counts)
+    width = max(levels[-1] - levels[0], 1) * .02
+    x, survival = [levels[0] - width], [1.0]
+    remaining = len(values)
+    for level in levels:
+        remaining -= counts[level]
+        x.append(level)
+        survival.append(remaining / len(values))
+    return x, survival
+
+
+def calibration_figure(scores, models):
+    import matplotlib.pyplot as plt
+
+    fig, axes = plt.subplots(1, 3, figsize=(12, 4.2))
+    for ax, key, label in zip(axes, FULL, LABELS, strict=True):
+        for block in ("7", "8"):
+            values = scores[block, key]
+            x, survival = empirical_survival(values)
+            line, = ax.step(x, survival, where="post", label=f"Block {block}, n={len(values):,}")
+            # Zero has no logarithmic coordinate. Mark its score at the axis base explicitly.
+            ax.plot(x[-1], 0, marker="o", mfc="none", mec=line.get_color(),
+                    color=line.get_color(), transform=ax.get_xaxis_transform(), clip_on=False)
+        ax.axvline(models[key]["cutoff"][0], color="black", linestyle="--", label="Pooled score cutoff")
+        ax.set(title=label, xlabel="Anomaly score", ylabel="Empirical P(score > x)")
+        ax.set_yscale("log", nonpositive="mask")
+        ax.legend(fontsize=7)
+    fig.supxlabel("Open circles at the axis base mark zero survival. Cutoff ties use the frozen digest order.",
+                  fontsize=9)
+    fig.tight_layout()
+    return fig
+
+
+def render_calibration(source, output):
+    """Render only the corrected calibration panel from existing frozen inputs."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    scores = defaultdict(list)
+    with (source / "clean-scores.csv").open(encoding="utf-8", newline="") as file:
+        for row in csv.DictReader(file):
+            if row["block"] in ("7", "8") and row["model"] in FULL:
+                scores[row["block"], row["model"]].append(float(row["score"]))
+    fig = calibration_figure(scores, json.loads((source / "models.json").read_bytes()))
+    path = output / "calibration.png"
+    fig.savefig(path, dpi=140)
+    plt.close(fig)
+    dump(output / "figure-metadata.json", dict(
+        matplotlib=matplotlib.__version__, source_sha256=digest(Path(__file__).read_bytes()),
+        inputs={name: digest((source / name).read_bytes()) for name in ("clean-scores.csv", "models.json")},
+        figures={path.name: dict(sha256=digest(path.read_bytes()),
+                                caption="Strict empirical P(score > x). Ties jump together. Zero tails are marked "
+                                        "at the axis base. The score cutoff alone excludes all cutoff ties; "
+                                        "the frozen digest rule selects a subset of those ties.")}))
 
 
 def render(output):
@@ -36,17 +97,9 @@ def render(output):
         for row in csv.DictReader(file):
             if row["block"] in ("7", "8") and row["model"] in FULL:
                 scores[row["block"], row["model"]].append(float(row["score"]))
-    fig, axes = plt.subplots(1, 3, figsize=(12, 3.6))
-    for ax, key, label in zip(axes, FULL, LABELS, strict=True):
-        for block in ("7", "8"):
-            values = sorted(scores[block, key])
-            ax.step(values, [(len(values) - i) / len(values) for i in range(len(values))],
-                    label=f"Block {block}, n={len(values):,}")
-        ax.axvline(models[key]["cutoff"][0], color="black", linestyle="--", label="Pooled score cutoff")
-        ax.set(title=label, xlabel="Anomaly score", ylabel="Empirical survival", yscale="log")
-        ax.legend(fontsize=7)
-    save(fig, "calibration", "Clean calibration blocks 7 and 8. Vertical lines show the score component of "
-         "each frozen cutoff. The persisted digest resolves score ties.")
+    fig = calibration_figure(scores, models)
+    save(fig, "calibration", "Strict empirical P(score > x) for calibration blocks 7 and 8. "
+         "Zero tails are marked at the axis base. Cutoff ties are selected by the frozen digest rule.")
 
     def paired_bars(ax, groups, select, *, metric="ap"):
         for offset, (method, label) in enumerate(zip(("baseline", "isolation"), LABELS[:2], strict=True)):

@@ -42,6 +42,8 @@ def store(db, ledger, checksum):
         if existing:
             if existing != fields:
                 raise ValueError(f"conflicting ledger {ledger.index}")
+            if payment_rows(db, ledger.index) != ledger.payments:
+                raise ValueError(f"mismatched normalized payments for ledger {ledger.index}")
             return
         prior = db.execute("SELECT hash, close_unix FROM ledger WHERE idx=?",
                            (ledger.index - 1,)).fetchone()
@@ -77,9 +79,12 @@ def ingest(db, directory):
     return manifest
 
 
+def payment_rows(db, index):
+    return tuple(db.execute(
+        """SELECT position, hash, sender, receiver, amount, fee
+           FROM payment WHERE ledger_idx=? ORDER BY position""", (index,)))
+
+
 def replay(db):
     for index, close in db.execute("SELECT idx, close_unix FROM ledger ORDER BY idx"):
-        rows = db.execute(
-            """SELECT position, hash, sender, receiver, amount, fee
-               FROM payment WHERE ledger_idx=? ORDER BY position""", (index,))
-        yield index, close, tuple(rows)
+        yield index, close, payment_rows(db, index)

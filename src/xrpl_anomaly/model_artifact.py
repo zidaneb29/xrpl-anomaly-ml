@@ -1,9 +1,12 @@
 """Versioned JSON bundles and prepared-feature inference."""
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from hashlib import sha256
 from math import isfinite
 from pathlib import Path
+from re import fullmatch
+from types import MappingProxyType
 
 from . import baseline
 from .features import FEATURES, SCHEMA_VERSION, WINDOW
@@ -74,6 +77,7 @@ class Detector:
     model_type: str
     cutoff: tuple
     artifact_sha256: str
+    snapshots: Mapping[str, str]
     _score: object
 
     def score(self, values, *, feature_names, feature_schema_version):
@@ -177,7 +181,8 @@ def decode(bundle):
     _provenance(bundle["provenance"])
     training = bundle["training"]
     fields(training, "blocks", "scoring_seconds", "configuration")
-    require(training["blocks"] == [1, 2, 3, 4] and training["scoring_seconds"] == 1800,
+    require(training["blocks"] == [1, 2, 3, 4] and all(type(i) is int for i in training["blocks"])
+            and training["scoring_seconds"] == 1800,
             "invalid training split")
     fitted = bundle["fitted"]
     fields(fitted, "parameters", "omitted")
@@ -194,14 +199,17 @@ def decode(bundle):
     require(bundle["model_id"] == model_id, "incompatible model identifier")
     calibration = bundle["calibration"]
     fields(calibration, "blocks", "policy", "cutoff")
-    require(calibration["blocks"] == [7, 8] and calibration["policy"] == POLICY,
+    require(calibration["blocks"] == [7, 8] and all(type(i) is int for i in calibration["blocks"])
+            and calibration["policy"] == POLICY,
             "unsupported calibration policy")
     cutoff = calibration["cutoff"]
     require(type(cutoff) is list and len(cutoff) == 3 and number(cutoff[0]) and cutoff[0] >= 0
             and (kind != "isolation_forest" or 0 < cutoff[0] <= 1)
-            and hex_string(cutoff[1], 64) and type(cutoff[2]) is str and bool(cutoff[2])
+            and hex_string(cutoff[1], 64) and type(cutoff[2]) is str
+            and fullmatch(r"[0-9A-F]{64}", cutoff[2])
             and tuple(cutoff) == baseline.alert_key(cutoff[0], cutoff[2]), "invalid calibration key")
-    return Detector(model_id, kind, tuple(cutoff), sha256(encode(bundle)).hexdigest(), scorer)
+    snapshots = MappingProxyType(dict(bundle["provenance"]["snapshots"]))
+    return Detector(model_id, kind, tuple(cutoff), sha256(encode(bundle)).hexdigest(), snapshots, scorer)
 
 
 def load(path):

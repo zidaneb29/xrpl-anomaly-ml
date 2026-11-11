@@ -1,6 +1,6 @@
 # Phase 4A model packaging and experiment tracking
 
-The full robust baseline is the operational reference. The two full Isolation Forest fits remain optional comparison detectors with their original seeds, subsample size, tree count and separate cutoffs. Phase 4A imports fitted state from Phase 3B.3. Historical synthetic metrics measure sensitivity to the specified interventions and do not estimate real fraud detection performance.
+The full robust baseline is the operational reference. The two full Isolation Forest fits remain optional comparison detectors with their original seeds, subsample size, tree count and separate cutoffs. Phase 4A imports fitted state from Phase 3B.3. Historical synthetic metrics describe ranking and alert selection for intervention-selected identities on edited streams. The [matched evaluation](phase-c-interpretation.md#matched-original-and-edited-rankings) measures how those rankings changed relative to the original streams. The original Mainnet payments are unlabeled.
 
 ## Model bundle v1
 
